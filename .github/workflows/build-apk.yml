@@ -1,4 +1,4 @@
-name: Build Musafir APK v11
+name: Build Musafir APK v12
 
 on:
   push:
@@ -28,6 +28,13 @@ jobs:
       - name: Install Cordova
         run: npm install -g cordova@12
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Build Tools
+        run: |
+          sdkmanager "build-tools;33.0.2" "platforms;android-33"
+
       - name: Create Cordova Project
         run: |
           cordova create musafir_app com.musafir.game Musafir
@@ -39,10 +46,13 @@ jobs:
 
       - name: Fix XmlParser error in cordova.gradle
         run: |
-          # Add the missing import for Groovy 4 compatibility
           FILE="musafir_app/platforms/android/CordovaLib/cordova.gradle"
-          sed -i '1i import groovy.xml.XmlParser' $FILE
-          echo "Fixed cordova.gradle with import"
+          if [ -f "$FILE" ]; then
+            sed -i '1i import groovy.xml.XmlParser' $FILE
+            echo "Fixed cordova.gradle"
+          else
+            echo "Warning: cordova.gradle not found yet"
+          fi
 
       - name: Build APK
         run: |
@@ -55,6 +65,6 @@ jobs:
       - name: Release APK
         run: |
           gh release delete v1.0 --yes 2>/dev/null || true
-          gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Finally! The APK is ready. Download and enjoy the journey of Musafir."
+          gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Finally! The APK is ready for real this time."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
