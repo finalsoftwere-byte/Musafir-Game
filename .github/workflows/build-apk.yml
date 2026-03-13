@@ -20,13 +20,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Node.js 18
+      - name: Setup Node.js 20
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Install Cordova
-        run: npm install -g cordova@latest
+      - name: Install Cordova 12
+        run: npm install -g cordova@12
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -35,7 +35,7 @@ jobs:
         run: |
           cordova create musafir_app com.musafir.game Musafir
           cd musafir_app
-          cordova platform add android@12.0.0
+          cordova platform add android@12.0.1
 
       - name: Copy Game File
         run: cp game/index.html musafir_app/www/index.html
@@ -54,17 +54,19 @@ jobs:
           </widget>
           EOF
 
-      - name: Build Debug APK
+      - name: Build APK with Specific Gradle
         run: |
           cd musafir_app
+          # Force Gradle 8.7 which works with Java 17 and doesn't have the Groovy 4 XmlParser issue
+          export CORDOVA_ANDROID_GRADLE_DISTRIBUTION_URL="https://services.gradle.org/distributions/gradle-8.7-all.zip"
           cordova build android --debug
 
-      - name: Copy APK
+      - name: Copy APK to root
         run: cp musafir_app/platforms/android/app/build/outputs/apk/debug/app-debug.apk Musafir_Game.apk
 
-      - name: Release
+      - name: Release APK
         run: |
           gh release delete v1.0 --yes 2>/dev/null || true
-          gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Download and enjoy!"
+          gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Final Build - Stable APK"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
