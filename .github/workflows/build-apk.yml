@@ -5,86 +5,90 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Node.js
+      - name: Setup Node.js 18
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
       - name: Install Cordova
-        run: npm install -g cordova
+        run: npm install -g cordova@12
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        run: |
+          sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
       - name: Create Cordova Project
         run: |
-          cordova create musafir com.musafir.game Musafir
-          cd musafir
-          cordova platform add android --save
+          cordova create musafir_app com.musafir.game Musafir
+          cd musafir_app
+          cordova platform add android@12
 
-      - name: Copy Game Files
+      - name: Copy Game File
+        run: cp game/index.html musafir_app/www/index.html
+
+      - name: Write config.xml
         run: |
-          cp game/index.html musafir/www/index.html
-          # Update config.xml
-          cat > musafir/config.xml << 'XMLEOF'
+          cat > musafir_app/config.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <widget id="com.musafir.game" version="1.0.0" xmlns="http://www.w3.org/ns/widgets">
-              <name>Musafir</name>
-              <description>Ek musafir ka safar</description>
-              <author>finalsoftwere-byte</author>
-              <content src="index.html" />
-              <preference name="DisallowOverscroll" value="true" />
-              <preference name="Fullscreen" value="true" />
-              <preference name="android-minSdkVersion" value="22" />
-              <preference name="Orientation" value="portrait" />
+          <widget id="com.musafir.game" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+            <name>Musafir</name>
+            <description>Ek musafir ka safar - A beautiful road adventure game</description>
+            <author>finalsoftwere-byte</author>
+            <content src="index.html" />
+            <allow-intent href="http://*/*" />
+            <allow-intent href="https://*/*" />
+            <preference name="android-minSdkVersion" value="22" />
+            <preference name="android-targetSdkVersion" value="34" />
+            <preference name="Fullscreen" value="true" />
+            <preference name="Orientation" value="portrait" />
+            <preference name="DisallowOverscroll" value="true" />
           </widget>
-          XMLEOF
+          EOF
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-
-      - name: Build APK
+      - name: Build Debug APK
         run: |
-          cd musafir
-          cordova build android --release -- --packageType=apk
+          cd musafir_app
+          cordova build android --debug
+          ls -la platforms/android/app/build/outputs/apk/debug/
 
-      - name: Sign APK (debug keystore)
+      - name: Copy APK
         run: |
-          cd musafir
-          # Use debug signing for simplicity
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../Musafir_Game.apk ||           cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../Musafir_Game.apk
+          cp musafir_app/platforms/android/app/build/outputs/apk/debug/app-debug.apk Musafir_Game.apk
+          echo "APK size: $(du -sh Musafir_Game.apk)"
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v1.0
-          name: Musafir Game v1.0
-          body: |
-            ## مسافر - Musafir Game v1.0
-            
-            **APK Download karo aur install karo!**
-            
-            ### Features:
-            - Ek ladka akela raste par chal raha hai
-            - Gaadiyaan milti hain (Car, Bike, Truck) - unpe baith sako!
-            - 4 NPC characters se baatein karo
-            - Khoobsurat din/raat ka cycle
-            - Mobile friendly controls
-            
-            ### Install Kaise Karo:
-            1. APK download karo
-            2. Settings > Security > Unknown Sources ON karo
-            3. APK install karo
-            4. Enjoy!
-          files: Musafir_Game.apk
+      - name: Delete old release if exists
+        run: |
+          gh release delete v1.0 --yes 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release with APK
+        run: |
+          gh release create v1.0 Musafir_Game.apk             --title "Musafir Game v1.0"             --notes "## مسافر Musafir Game
+
+APK download karo aur install karo!
+
+### Install:
+1. APK download karo
+2. Settings > Unknown Sources ON karo
+3. Install karo & khelo!"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
