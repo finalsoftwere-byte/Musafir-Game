@@ -1,4 +1,4 @@
-name: Build Musafir APK v13
+name: Build Musafir APK v14
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -20,25 +20,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Node.js 18
+      - name: Setup Node.js 20
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Install Cordova 11
-        run: npm install -g cordova@11
+      - name: Install Cordova 12
+        run: npm install -g cordova@12
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Build Tools
+      - name: Install Android Build Tools
         run: sdkmanager "build-tools;33.0.2" "platforms;android-33"
 
       - name: Create Cordova Project
         run: |
           cordova create musafir_app com.musafir.game Musafir
           cd musafir_app
-          cordova platform add android@11.0.0
+          cordova platform add android@12.0.1
 
       - name: Copy Game File
         run: cp game/index.html musafir_app/www/index.html
@@ -52,21 +52,31 @@ jobs:
             <description>Road Adventure Game</description>
             <author>finalsoftwere-byte</author>
             <content src="index.html" />
+            <preference name="android-minSdkVersion" value="24" />
+            <preference name="android-targetSdkVersion" value="33" />
             <preference name="Fullscreen" value="true" />
             <preference name="Orientation" value="portrait" />
           </widget>
           EOF
 
-      - name: Deep Fix XmlParser compatibility
+      - name: Fix XmlParser compatibility
         run: |
-          # Apply import to all gradle files in the android project
-          find musafir_app/platforms/android -name "*.gradle" -exec sed -i '1i import groovy.xml.XmlParser' {} +
-          echo "Applied XmlParser import fix to all gradle files"
+          FILE="musafir_app/platforms/android/CordovaLib/cordova.gradle"
+          if [ -f "$FILE" ]; then
+            sed -i '1i import groovy.xml.XmlParser' $FILE
+            echo "Fixed $FILE"
+          fi
+          # Also check app build.gradle
+          APP_FILE="musafir_app/platforms/android/app/build.gradle"
+          if [ -f "$APP_FILE" ]; then
+             sed -i '1i import groovy.xml.XmlParser' $APP_FILE
+             echo "Fixed $APP_FILE"
+          fi
 
-      - name: Build APK with forced Gradle 7.6
+      - name: Build APK
         run: |
           cd musafir_app
-          export CORDOVA_ANDROID_GRADLE_DISTRIBUTION_URL="https://services.gradle.org/distributions/gradle-7.6-all.zip"
+          export CORDOVA_ANDROID_GRADLE_DISTRIBUTION_URL="https://services.gradle.org/distributions/gradle-8.7-all.zip"
           cordova build android --debug
 
       - name: Copy APK to root
@@ -75,6 +85,6 @@ jobs:
       - name: Release APK
         run: |
           gh release delete v1.0 --yes 2>/dev/null || true
-          gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Final Build - Compatible APK"
+          gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Official APK build. Install and enjoy!"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
