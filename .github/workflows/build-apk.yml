@@ -46,11 +46,11 @@ jobs:
 
       - name: Write config.xml
         run: |
-          cat > musafir_app/config.xml << 'EOF'
+          cat > musafir_app/config.xml << 'CFGEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <widget id="com.musafir.game" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
             <name>Musafir</name>
-            <description>Ek musafir ka safar - A beautiful road adventure game</description>
+            <description>Road Adventure Game</description>
             <author>finalsoftwere-byte</author>
             <content src="index.html" />
             <allow-intent href="http://*/*" />
@@ -61,23 +61,24 @@ jobs:
             <preference name="Orientation" value="portrait" />
             <preference name="DisallowOverscroll" value="true" />
           </widget>
-          EOF
+          CFGEOF
 
       - name: Build Debug APK
         run: |
           cd musafir_app
           cordova build android --debug
 
-      - name: Copy APK
-        run: cp musafir_app/platforms/android/app/build/outputs/apk/debug/app-debug.apk Musafir_Game.apk
+      - name: Copy APK to root
+        run: |
+          cp musafir_app/platforms/android/app/build/outputs/apk/debug/app-debug.apk Musafir_Game.apk
+          echo "APK ready: $(du -sh Musafir_Game.apk)"
 
-      - name: Delete old release if exists
+      - name: Delete old release
         run: gh release delete v1.0 --yes 2>/dev/null || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create GitHub Release with APK
-        run: |
-          gh release create v1.0 Musafir_Game.apk             --title "Musafir Game v1.0"             --notes "Musafir Game - APK download karein aur install karein. Raste mein gaadiyon par baithein aur logon se baatein karein!"
+      - name: Upload APK to GitHub Release
+        run: gh release create v1.0 Musafir_Game.apk --title "Musafir Game v1.0" --notes "Download APK and install on your Android phone!"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
